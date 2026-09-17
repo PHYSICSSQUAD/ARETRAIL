@@ -1,0 +1,415 @@
+<mxfile host="app.diagrams.net" agent="Professional UVM Architect">
+  <diagram id="uvm_pro" name="Professional UVM Architecture">
+    <mxGraphModel dx="544" dy="285" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="1">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="test" parent="1" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;startSize=30;fontStyle=1;" value=" " vertex="1">
+          <mxGeometry height="1060" width="1510" x="20" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cfg" parent="test" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="env_cfg (Configuration)" vertex="1">
+          <mxGeometry height="50" width="180" x="40" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="vseq" parent="test" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;" value="Virtual Sequences" vertex="1">
+          <mxGeometry height="50" width="180" x="250" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="env" parent="test" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;startSize=30;fontStyle=1;" value=" " vertex="1">
+          <mxGeometry height="890" width="1460" x="20" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="vsqr" parent="env" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Virtual Sequencer (v_sqr)" vertex="1">
+          <mxGeometry height="60" width="200" x="30" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rst_agt" parent="env" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;startSize=30;fontStyle=1;" value="System Control Agent (Active)" vertex="1">
+          <mxGeometry height="240" width="240" x="20" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="rst_agt_sqr" parent="rst_agt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=default;" value="Sequencer" vertex="1">
+          <mxGeometry height="50" width="200" x="20" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rst_agt_sqr_exp" parent="rst_agt_sqr" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" x="0.5" y="1" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rst_agt_drv" parent="rst_agt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Driver" vertex="1">
+          <mxGeometry height="50" width="200" x="20" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="rst_agt_drv_port" parent="rst_agt_drv" style="shape=rectangle;whiteSpace=wrap;html=1;fillColor=#FF9933;strokeColor=#CC6600;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" x="0.5" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rst_agt_mon" parent="rst_agt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Input Monitor" vertex="1">
+          <mxGeometry height="40" width="200" x="20" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="rst_agt_ap" parent="rst_agt_mon" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#33CC33;strokeColor=#009900;" value="" vertex="1">
+          <mxGeometry height="20" relative="1" width="20" x="1" y="0.5" as="geometry">
+            <mxPoint x="-10" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if_agt" parent="env" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;startSize=30;fontStyle=1;" value="IF Agent (Active)" vertex="1">
+          <mxGeometry height="240" width="240" x="20" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="if_agt_sqr" parent="if_agt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Sequencer" vertex="1">
+          <mxGeometry height="50" width="200" x="20" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="if_agt_sqr_exp" parent="if_agt_sqr" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" x="0.5" y="1" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if_agt_drv" parent="if_agt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Driver" vertex="1">
+          <mxGeometry height="50" width="200" x="20" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="if_agt_drv_port" parent="if_agt_drv" style="shape=rectangle;whiteSpace=wrap;html=1;fillColor=#FF9933;strokeColor=#CC6600;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" x="0.5" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if_agt_mon" parent="if_agt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Input Monitor" vertex="1">
+          <mxGeometry height="40" width="200" x="20" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="if_agt_ap" parent="if_agt_mon" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#33CC33;strokeColor=#009900;" value="" vertex="1">
+          <mxGeometry height="20" relative="1" width="20" x="1" y="0.5" as="geometry">
+            <mxPoint x="-10" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lsu_agt" parent="env" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;startSize=30;fontStyle=1;" value="LSU Agent (Active)" vertex="1">
+          <mxGeometry height="240" width="240" x="300" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="lsu_agt_sqr" parent="lsu_agt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Sequencer" vertex="1">
+          <mxGeometry height="50" width="200" x="20" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lsu_agt_sqr_exp" parent="lsu_agt_sqr" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" x="0.5" y="1" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lsu_agt_drv" parent="lsu_agt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Driver" vertex="1">
+          <mxGeometry height="50" width="200" x="20" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="lsu_agt_drv_port" parent="lsu_agt_drv" style="shape=rectangle;whiteSpace=wrap;html=1;fillColor=#FF9933;strokeColor=#CC6600;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" x="0.5" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lsu_agt_mon" parent="lsu_agt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Input Monitor" vertex="1">
+          <mxGeometry height="40" width="200" x="20" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="lsu_agt_ap" parent="lsu_agt_mon" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#33CC33;strokeColor=#009900;" value="" vertex="1">
+          <mxGeometry height="20" relative="1" width="20" x="1" y="0.5" as="geometry">
+            <mxPoint x="-10" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if_pas" parent="env" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;startSize=30;fontStyle=1;" value="IF Agent (Passive)" vertex="1">
+          <mxGeometry height="120" width="240" x="20" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="if_pas_mon" parent="if_pas" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Output Monitor" vertex="1">
+          <mxGeometry height="50" width="200" x="20" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="if_pas_ap" parent="if_pas_mon" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#33CC33;strokeColor=#009900;" value="" vertex="1">
+          <mxGeometry height="20" relative="1" width="20" x="1" y="0.5" as="geometry">
+            <mxPoint x="-10" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lsu_pas" parent="env" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;startSize=30;fontStyle=1;" value="LSU Agent (Passive)" vertex="1">
+          <mxGeometry height="120" width="240" x="300" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="lsu_pas_mon" parent="lsu_pas" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Output Monitor" vertex="1">
+          <mxGeometry height="50" width="200" x="20" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="lsu_pas_ap" parent="lsu_pas_mon" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#33CC33;strokeColor=#009900;" value="" vertex="1">
+          <mxGeometry height="20" relative="1" width="20" x="1" y="0.5" as="geometry">
+            <mxPoint x="-10" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ref_model" parent="env" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" value="Reference Model (Subscriber)" vertex="1">
+          <mxGeometry height="100" width="220" x="640" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="ref_exp_if" parent="ref_model" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" y="0.3" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ref_exp_lsu" parent="ref_model" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" y="0.7" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ref_ap" parent="ref_model" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#33CC33;strokeColor=#009900;" value="" vertex="1">
+          <mxGeometry height="20" relative="1" width="20" x="1" y="0.5" as="geometry">
+            <mxPoint x="-10" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tnfaoiW0JXz17HmROI4M-6" parent="ref_model" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" width="15" x="20" y="-10" as="geometry" />
+        </mxCell>
+        <mxCell id="sb" parent="env" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" value="uvm_scoreboard" vertex="1">
+          <mxGeometry height="160" width="250" x="1000" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="sb_imp_ref" parent="sb" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" y="0.2" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sb_imp_if" parent="sb" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" y="0.5" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sb_imp_lsu" parent="sb" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" y="0.8" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cov" parent="env" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" value="Coverage (Subscriber)" vertex="1">
+          <mxGeometry height="80" width="220" x="710" y="640" as="geometry" />
+        </mxCell>
+        <mxCell id="cov_exp1" parent="cov" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" y="0.3" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cov_exp2" parent="cov" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" y="0.7" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tnfaoiW0JXz17HmROI4M-1" edge="1" parent="env" source="vsqr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;shape=wire;" target="if_agt_sqr">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-30" y="230" as="sourcePoint" />
+            <mxPoint x="170" y="600" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tnfaoiW0JXz17HmROI4M-5" edge="1" parent="env" source="rst_agt_ap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#0066CC;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;shape=wire;dashed=1;" target="tnfaoiW0JXz17HmROI4M-6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="590" y="339.94" />
+              <mxPoint x="590" y="390.06" />
+              <mxPoint x="667.53" y="390.06" />
+            </Array>
+            <mxPoint x="590" y="232" as="sourcePoint" />
+            <mxPoint x="990" y="90" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_rst_agt_sqr_drv" edge="1" parent="1" source="rst_agt_sqr_exp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=default;" target="rst_agt_drv_port">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_if_agt_sqr_drv" edge="1" parent="1" source="if_agt_sqr_exp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" target="if_agt_drv_port">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_lsu_agt_sqr_drv" edge="1" parent="1" source="lsu_agt_sqr_exp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" target="lsu_agt_drv_port">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_vsqr_rst" edge="1" parent="1" source="vsqr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;" target="rst_agt_sqr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_vsqr_lsu" edge="1" parent="1" source="vsqr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;" target="lsu_agt_sqr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ifm_ref" edge="1" parent="1" source="if_agt_ap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;" target="ref_exp_if">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="330.03" y="780.03" />
+              <mxPoint x="330.03" y="560.03" />
+              <mxPoint x="610.03" y="560.03" />
+              <mxPoint x="610.03" y="630.03" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_lsum_ref" edge="1" parent="1" source="lsu_agt_ap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#0066CC;shape=wire;dashed=1;" target="ref_exp_lsu">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="570.03" y="800.03" />
+              <mxPoint x="690.03" y="800.03" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_ref_sb" edge="1" parent="1" source="ref_ap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;" target="sb_imp_ref">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="900" y="630" />
+              <mxPoint x="981.25" y="630" />
+              <mxPoint x="981.25" y="632" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_ifp_sb" edge="1" parent="1" source="if_pas_ap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;" target="sb_imp_if">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="290.03" y="810.03" />
+              <mxPoint x="1000.03" y="810.03" />
+              <mxPoint x="1000.03" y="680.03" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_lsup_sb" edge="1" parent="1" source="lsu_pas_ap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;" target="sb_imp_lsu">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="570" y="930" />
+              <mxPoint x="1030" y="930" />
+              <mxPoint x="1030" y="728" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_ifp_cov" edge="1" parent="1" source="if_pas_ap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;" target="cov_exp1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="320.03" y="915" />
+              <mxPoint x="320.03" y="840.03" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_lsup_cov" edge="1" parent="1" source="lsu_pas_ap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;" target="cov_exp2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="570.03" y="876.03" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="intf_if" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;dashed=1;strokeWidth=2;" value="IF Virtual Interface" vertex="1">
+          <mxGeometry height="40" width="400" x="20" y="1150" as="geometry" />
+        </mxCell>
+        <mxCell id="intf_lsu" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;dashed=1;strokeWidth=2;" value="LSU Virtual Interface" vertex="1">
+          <mxGeometry height="40" width="400" x="460" y="1150" as="geometry" />
+        </mxCell>
+        <mxCell id="intf_rst" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;dashed=1;strokeWidth=2;" value="System Control Interface" vertex="1">
+          <mxGeometry height="40" width="200" x="940" y="1150" as="geometry" />
+        </mxCell>
+        <mxCell id="dut" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;strokeWidth=2;" value="Design Under Test (CV32E40P)" vertex="1">
+          <mxGeometry height="120" width="500" x="270" y="1230" as="geometry" />
+        </mxCell>
+        <mxCell id="sva" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;strokeWidth=2;" value="Assertions (SVA Module) bind cv32e40p_top" vertex="1">
+          <mxGeometry height="120" width="220" x="920" y="1230" as="geometry" />
+        </mxCell>
+        <mxCell id="e_sva_dut" edge="1" parent="1" source="sva" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;" target="dut">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_rstdrv_intf" edge="1" parent="1" source="rst_agt_drv" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" target="intf_rst">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1360" y="465" />
+              <mxPoint x="1360" y="1170" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_ifdrv_intf" edge="1" parent="1" source="if_agt_drv" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="intf_if">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="30.03" y="725" />
+              <mxPoint x="30.03" y="1150.03" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_ifmon_intf" edge="1" parent="1" source="if_agt_mon" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" target="intf_if">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="50.03" y="780.03" />
+              <mxPoint x="50.03" y="1120.03" />
+              <mxPoint x="220.03" y="1120.03" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_ifpmon_intf" edge="1" parent="1" source="if_pas_mon" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" target="intf_if">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="60" y="915" />
+              <mxPoint x="60" y="1045" />
+              <mxPoint x="220" y="1045" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_lsudrv_intf" edge="1" parent="1" source="lsu_agt_drv" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" target="intf_lsu">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="660" y="725.03" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_lsumon_intf" edge="1" parent="1" source="lsu_agt_mon" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" target="intf_lsu">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="690" y="780" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_lsupmon_intf" edge="1" parent="1" source="lsu_pas_mon" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" target="intf_lsu">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="460" y="1050" />
+              <mxPoint x="640" y="1050" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_intfrst_dut" edge="1" parent="1" source="intf_rst" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" target="dut">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1040" y="1210" />
+              <mxPoint x="520" y="1210" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_intfif_dut" edge="1" parent="1" source="intf_if" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" target="dut">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="220" y="1200" />
+              <mxPoint x="520" y="1200" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_intflsu_dut" edge="1" parent="1" source="intf_lsu" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" target="dut">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="660" y="1200" />
+              <mxPoint x="520" y="1200" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+              <mxCell id="rvfi_pas" parent="env" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;startSize=30;fontStyle=1;" value="RVFI Monitor (Passive)" vertex="1">
+          <mxGeometry height="120" width="240" x="580" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="rvfi_pas_mon" parent="rvfi_pas" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Internal State Monitor" vertex="1">
+          <mxGeometry height="50" width="200" x="20" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="rvfi_pas_ap" parent="rvfi_pas_mon" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#33CC33;strokeColor=#009900;" value="" vertex="1">
+          <mxGeometry height="20" relative="1" width="20" x="1" y="0.5" as="geometry">
+            <mxPoint x="-10" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sb_imp_rvfi" parent="sb" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" y="0.65" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_rvfip_sb" edge="1" parent="1" source="rvfi_pas_ap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;" target="sb_imp_rvfi">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="830" y="900" />
+              <mxPoint x="980" y="900" />
+              <mxPoint x="980" y="670" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="intf_rvfi" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;dashed=1;strokeWidth=2;" value="RVFI Internal Interface" vertex="1">
+          <mxGeometry height="40" width="200" x="720" y="1150" as="geometry" />
+        </mxCell>
+        <mxCell id="e_rvfipmon_intf" edge="1" parent="1" source="rvfi_pas_mon" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" target="intf_rvfi">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820" y="1050" />
+              <mxPoint x="820" y="1050" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_intfrvfi_dut" edge="1" parent="1" source="intf_rvfi" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" target="dut">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820" y="1210" />
+              <mxPoint x="600" y="1210" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
+
