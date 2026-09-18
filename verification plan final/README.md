@@ -9,9 +9,9 @@ the template; only the data rows and the project title (`risc_v`) are new.
 
 | Sheet | Columns (exactly as in the template) | Rows |
 |---|---|---|
-| `System.html` | ID · Design Requirement Description · (note) · component name | 59 requirements |
+| `System.html` | ID · Design Requirement Description · (note) · component name | 55 requirements |
 | `Generation_.html` | ID · Design Requirement Description · Generation · component/Object name | 42 rows |
-| `Checking_.html` | ID · Design Requirement Description · check · property name · comment | 49 rows |
+| `Checking_.html` | ID · Design Requirement Description · check · property name · comment | 45 rows |
 | `Coverage_.html` | ID · Design Requirement Description · Coverage · covergroup | 40 rows |
 | `test list.html` | test name · sequance run · stimuls generated | 27 tests |
 
@@ -136,6 +136,34 @@ python3 build_plan.py
 - Initial-register-zero check (`sb_rf_reset_zero_opt`) is flagged as an
   implementation-specific property of the FF register file (not an ISA
   requirement) — kept as an optional one-shot check.
+
+## Revision 2 — content review pass (scope tightening + human text)
+
+- **All guideline/team references removed** from every description, check and
+  comment. The sheets now read as self-contained engineering requirements; the
+  scope decisions simply *are*, without citing where they came from.
+- **Functional checks for outside-the-goal features deleted entirely**
+  (nothing about them needs code in the TB beyond static driving):
+  - `irq_ack_o`/`irq_id_o` checks, debug-status exclusivity check,
+    `core_sleep_o` check — removed; only the static tie-off driving row
+    remains (`risc_sys_06`).
+  - CSR-side checks removed: the optional `mepc/mcause` probe and the CSR
+    encodings illegal-category. The trap *redirect* check (fetch observable)
+    stays because illegal instructions are in the I&M verification scope.
+  - Illegal-encoding stimulus narrowed to the RV32I/M opcode space: categories
+    (a) undefined major opcodes, (b) undefined funct3/funct7, (c) reserved
+    shift encodings. F/A/custom/CSR opcode families are never generated at
+    all, so no check is needed for them (`risc_dec_04` constraint).
+- **Component names aligned to the UVM architecture diagram** (was ad-hoc
+  short names): `sys_ctrl_agent`, `if_agent`, `if_passive_agent`,
+  `lsu_agent`, `lsu_passive_agent` (each with its
+  sequencer/driver/input_monitor or output_monitor), `rvfi_monitor`
+  (internal_state_monitor), `ref_model`, `uvm_scoreboard`,
+  `sva_module (bind cv32e40p_top)`, `v_sqr`, `virtual_sequences`, `env_cfg`;
+  interfaces `sys_ctrl_vif / if_vif / lsu_vif / rvfi_vif`.
+- Row counts after this pass: System 55 (was 59) / Generation 42 / Checking 45
+  (was 49) / Coverage 40 / Tests 27. Traceability re-verified (all
+  gen/chk/cov IDs exist in System, descriptions verbatim).
 
 ## Outstanding item
 
