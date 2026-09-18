@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CV32E40P — Testbench Architecture Review &amp; Proposed Architecture</title>
+<style>
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#1a1a1a;max-width:1180px;margin:24px auto;padding:0 20px;line-height:1.55;font-size:15px}
+  h1{border-bottom:3px solid #2456a6;padding-bottom:6px;font-size:26px}
+  h2{color:#2456a6;margin-top:38px;border-bottom:1.5px solid #c8d6ee;padding-bottom:4px;font-size:21px}
+  h3{color:#333;margin-top:26px;font-size:17px}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13.5px}
+  th{background:#2456a6;color:#fff;padding:6px 9px;text-align:left;vertical-align:bottom}
+  td{border:1px solid #cfdaec;padding:5px 9px;vertical-align:top}
+  tr:nth-child(even){background:#f2f6fc}
+  code{background:#eef3fa;padding:1px 5px;border-radius:3px;font-family:Consolas,Monaco,monospace;font-size:13px;color:#0b3d91}
+  .gap{background:#fff4e5;border-right:4px solid #e8930c;border-left:4px solid #e8930c;padding:10px 14px;margin:12px 0}
+  .chg{background:#eafaef;border-right:4px solid #1a9e4b;border-left:4px solid #1a9e4b;padding:10px 14px;margin:12px 0}
+  .dec{background:#eef1f8;border-right:4px solid #2456a6;border-left:4px solid #2456a6;padding:10px 14px;margin:12px 0}
+  .warn{background:#fdecec;border-right:4px solid #c0392b;border-left:4px solid #c0392b;padding:10px 14px;margin:12px 0}
+  .small{font-size:12.5px;color:#555}
+  .fig{border:1.5px solid #c8d6ee;border-radius:6px;padding:10px;margin:14px 0;background:#fbfcff;overflow-x:auto}
+  .figcap{font-size:12.5px;color:#555;margin-top:6px;font-style:italic}
+  ul.tight li,ol.tight li{margin-bottom:3px}
+  .tag{font-weight:bold;padding:1px 7px;border-radius:9px;font-size:11.5px;color:#fff}
+  .t-critical{background:#c0392b}.t-major{background:#e8930c}.t-minor{background:#7f8c9b}
+</style>
+</head>
+<body>
+
+<h1>CV32E40P — Testbench Architecture Review &amp; Proposed Testbench Architecture</h1>
+<p class="small">Status: <b>proposal for review</b> &nbsp;|&nbsp; Baseline: <code>arcitecture/uvm_architecture_pro_updated.jpg/.drawio</code> (left untouched) &nbsp;|&nbsp; Scope note: this document deliberately does <b>not</b> modify the Verification Plan — the Plan is updated in a separate follow-up task using the final component names established here.</p>
+
+<h2>0. Task scope and ground rules</h2>
+<ul class="tight">
+<li>Review the <b>initial</b> testbench architecture found in the project (<code>arcitecture/uvm_architecture_pro_updated.*</code>), understand the DUT from RTL/databook, and propose an improved architecture only where technically justified.</li>
+<li>The original diagram is the baseline and stays unchanged. All improvements are identified explicitly below.</li>
+<li>Everything in the environment is built by the team — no pre-verified/open-source verification IP, no external ISS. The reference model is our own SystemVerilog code.</li>
+</ul>
+
+<h2>1. DUT understanding (what the TB must serve)</h2>
+<h3>1.1 Configuration under test</h3>
+<p>Parameter set (see <code>parameters/parameters.png</code>, databook Table 3): <code>FPU=0, FPU_ADDMUL_LAT=0, FPU_OTHERS_LAT=0, ZFINX=0, COREV_PULP=0, COREV_CLUSTER=0, NUM_MHPMCOUNTERS=1</code> → the DUT is a vanilla <b>RV32IM</b> core (M ok; F, custom PULP ops, cluster mode and hardware loops all disabled). Everything the TB builds targets this configuration only.</p>
+<h3>1.2 Pin interfaces (<code>cv32e40p_top</code>)</h3>
+<table>
+<tr><th>Group</th><th>Signals</th><th>Driver responsibility in TB</th></tr>
+<tr><td>Clock/reset</td><td><code>clk_i, rst_ni</code></td><td>Clock generator in tb_top; reset driven by System Control agent (reset policy from env_cfg).</td></tr>
+<tr><td>Static config</td><td><code>boot_addr_i, mtvec_addr_i, dm_halt_addr_i, hart_id_i, dm_exception_addr_i</code></td><td>Driven once per test by System Control agent from env_cfg values (aligned, legal, mapped).</td></tr>
+<tr><td>Tie-offs (out-of-goal features kept in normal operation)</td><td><code>irq_i=0, debug_req_i=0, pulp_clock_en_i, scan_cg_en_i</code>, <code>fetch_enable_i=1</code></td><td>Constant drive by System Control agent. No checkers/coverage on these paths (not the verification goal).</td></tr>
+<tr><td>Instruction OBI</td><td><code>instr_req_o, instr_gnt_i, instr_rvalid_i, instr_addr_o, instr_rdata_i</code></td><td>TB is the bus <b>slave</b> (memory responder). DUT masters fetches.</td></tr>
+<tr><td>Data OBI</td><td><code>data_req_o, data_gnt_i, data_rvalid_i, data_we_o, data_be_o, data_addr_o, data_wdata_o, data_rdata_i</code></td><td>TB is the bus <b>slave</b> (data memory + sideband mailbox).</td></tr>
+<tr><td>Unused status outs</td><td><code>irq_ack_o, irq_id_o, debug_havereset_o, debug_running_o, debug_halted_o, core_sleep_o</code></td><td>Not sampled for checking (out of goal). Keep unconnected in env logic.</td></tr>
+</table>
+<h3>1.3 Protocol facts the TB must implement (RTL + databook verified)</h3>
+<table>
+<tr><th>#</th><th>Fact</th><th>Source anchor</th></tr>
+<tr><td>P1</td><td>Fetch interface: word-aligned 32-bit fetches only; up to <code>FIFO_DEPTH=2</code> outstanding transactions; responses must return <b>in-order</b> (no aid/rid); speculative prefetch beyond the current PC is legal, memory model must be free of read side effects.</td><td><code>cv32e40p_prefetch_buffer.sv:57‑60</code>; databook <code>instruction_fetch.rst</code></td></tr>
+<tr><td>P2</td><td><code>req</code> stays high until a 1-cycle <code>gnt</code>; <code>rvalid</code> is exactly 1 cycle per granted request and carries read data; no <code>rready</code> → completions are never back-pressured.</td><td>databook IF/LSU signal tables</td></tr>
+<tr><td>P3</td><td>Data interface: up to 2 outstanding transactions; optional OBI signals (<code>we/be/wdata</code> exist on data side; <code>auser..err, rid</code>) absent → treated as tied off; no error responses exist in the protocol.</td><td>databook <code>load_store_unit.rst</code> Protocol</td></tr>
+<tr><td>P4</td><td><b>Misaligned</b> word / boundary-crossing halfword loads &amp; stores are executed as <b>two bus transactions, lowest address first</b>. The LSU <b>never raises a misaligned exception.</b></td><td>databook <code>load_store_unit.rst</code> "Misaligned Accesses"</td></tr>
+<tr><td>P5</td><td>Register file write collision (EX result port A vs load WB port B, same cycle, same addr): <b>port B (load) wins</b> — <code>if (we_b_dec[i]) mem[i]&lt;=wdata_b_i; else if (we_a_dec[i])&nbsp;...</code>; x0 is hard-wired to 0.</td><td><code>cv32e40p_register_file_ff.sv:131‑137</code></td></tr>
+<tr><td>P6</td><td>Core exports no RVFI port, but the RTL itself already taps internal signals hierarchically for its own verification logic (e.g. <code>id_stage_i.illegal_insn_dec</code>, <code>cs_registers_i.mepc_n</code>, <code>inst_taken = id_valid &amp;&amp; is_decoding</code>). Internal probing from the TB follows the same precedent and is non-intrusive.</td><td><code>cv32e40p_core.sv:1198‑1280</code> (<code>`ifndef SYNTHESIS</code>)</td></tr>
+<tr><td>P7</td><td>Retire/commit of one instruction = ID stage completes (single-issue in-order core; writes committed from EX for ALU/M/DIV results, from WB for loads).</td><td><code>cv32e40p_core.sv</code>, databook <code>pipeline.rst</code></td></tr>
+<tr><td>P8</td><td>Illegal-instruction detection in the decoder redirects fetch to <code>mtvec</code> (observable as a fetch-redirect on the instruction OBI interface); trap bookkeeping (mepc/mcause CSRs) is outside the goal and needs no checkers.</td><td>RTL core.sv assertion block; scope decision</td></tr>
+</table>
+<h3>1.4 Verification goal &amp; methodology constraints driving the architecture</h3>
+<ul class="tight">
+<li><b>Goal:</b> executable correctness of RV32I + M through the whole pipeline (top-level, core-as-a-whole). Simple exception scenarios limited to what misaligned/illegal paths exercise; ecall/ebreak not required.</li>
+<li><b>Fact F1:</b> Data/instruction memories are testbench components — we implement both as memory models inside the agents.</li>
+<li><b>Fact F2:</b> Instruction stimulus has two sanctioned options; we use <b>pre-generated programs</b> loaded into the instruction memory model — the core fetches naturally (see decision D2).</li>
+<li><b>Fact F3:</b> Checking philosophy: a small number of group-level checkers that ease debug — explicitly <i>not</i> one checker per RTL module.</li>
+<li><b>Fact F4:</b> No coverage points for features outside the goal (no FPU/CSR/IRQ/debug/sleep covergroups anywhere).</li>
+</ul>
+
+<h2>2. Baseline architecture — as found (unchanged)</h2>
+<div class="fig">
+<svg width="1120" height="700" viewBox="0 0 1120 700" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,Arial" font-size="12">
+<defs><marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#2456a6"/></marker>
+<marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#1a9e4b"/></marker></defs>
+<rect x="6" y="6" width="1108" height="688" fill="none" stroke="#b7a6d8" stroke-width="2"/>
+<text x="16" y="26" fill="#7a63ad" font-weight="bold">tb boundary (not labeled in baseline)</text>
+<rect x="30" y="52" width="170" height="40" fill="#fff" stroke="#888" rx="4"/><text x="115" y="76" text-anchor="middle">env_cfg (Configuration)</text>
+<ellipse cx="330" cy="72" rx="80" ry="26" fill="#fff" stroke="#888"/><text x="330" y="76" text-anchor="middle">Virtual Sequences</text>
+<rect x="30" y="130" width="150" height="40" fill="#fff" stroke="#888" rx="4"/><text x="105" y="154" text-anchor="middle">Virtual Sequencer (v_sqr)</text>
+<!-- sys ctrl agent -->
+<rect x="20" y="200" width="190" height="150" fill="#dbe7fb" stroke="#6f97d8"/><text x="115" y="220" text-anchor="middle" font-weight="bold">System Control Agent (Active)</text>
+<rect x="40" y="232" width="150" height="30" fill="#fff" stroke="#888" rx="4"/><text x="115" y="252" text-anchor="middle">Sequencer</text>
+<rect x="40" y="272" width="150" height="30" fill="#fff" stroke="#888" rx="4"/><text x="115" y="292" text-anchor="middle">Driver</text>
+<rect x="40" y="312" width="150" height="30" fill="#fff" stroke="#888" rx="4"/><text x="115" y="332" text-anchor="middle">Input Monitor</text>
+<!-- if agent active -->
+<rect x="20" y="380" width="190" height="150" fill="#dbe7fb" stroke="#6f97d8"/><text x="115" y="400" text-anchor="middle" font-weight="bold">IF Agent (Active)</text>
+<rect x="40" y="412" width="150" height="30" fill="#fff" stroke="#888" rx="4"/><text x="115" y="432" text-anchor="middle">Sequencer</text>
+<rect x="40" y="452" width="150" height="30" fill="#fff" stroke="#888" rx="4"/><text x="115" y="472" text-anchor="middle">Driver</text>
+<rect x="40" y="492" width="150" height="30" fill="#fff" stroke="#888" rx="4"/><text x="115" y="512" text-anchor="middle">Input Monitor</text>
+<!-- if agent passive -->
+<rect x="20" y="560" width="190" height="80" fill="#dbe7fb" stroke="#6f97d8"/><text x="115" y="580" text-anchor="middle" font-weight="bold">IF Agent (Passive)</text>
+<rect x="40" y="592" width="150" height="30" fill="#fff" stroke="#888" rx="4"/><text x="115" y="612" text-anchor="middle">Output Monitor</text>
+<!-- lsu active -->
+<rect x="250" y="200" width="190" height="150" fill="#dbe7fb" stroke="#6f97d8"/><text x="345" y="220" text-anchor="middle" font-weight="bold">LSU Agent (Active)</text>
+<rect x="270" y="232" width="150" height="30" fill="#fff" stroke="#888" rx="4"/><text x="345" y="252" text-anchor="middle">Sequencer</text>
+<rect x="270" y="272" width="150" height="30" fill="#fff" stroke="#888" rx="4"/><text x="345" y="292" text-anchor="middle">Driver</text>
+<rect x="270" y="312" width="150" height="30" fill="#fff" stroke="#888" rx="4"/><text x="345" y="332" text-anchor="middle">Input Monitor</text>
+<!-- lsu passive -->
+<rect x="250" y="380" width="190" height="80" fill="#dbe7fb" stroke="#6f97d8"/><text x="345" y="400" text-anchor="middle" font-weight="bold">LSU Agent (Passive)</text>
+<rect x="270" y="412" width="150" height="30" fill="#fff" stroke="#888" rx="4"/><text x="345" y="432" text-anchor="middle">Output Monitor</text>
+<!-- rvfi -->
+<rect x="250" y="500" width="190" height="90" fill="#dbe7fb" stroke="#6f97d8"/><text x="345" y="520" text-anchor="middle" font-weight="bold">RVFI Monitor (Passive)</text>
+<rect x="270" y="532" width="150" height="30" fill="#fff" stroke="#888" rx="4"/><text x="345" y="552" text-anchor="middle">Internal State Monitor</text>
+<!-- RM, coverage, sb -->
+<rect x="600" y="170" width="240" height="60" fill="#d9ead3" stroke="#6aa84f" rx="28"/><text x="720" y="205" text-anchor="middle">Reference Model (Subscriber)</text>
+<rect x="600" y="290" width="240" height="60" fill="#d9ead3" stroke="#6aa84f" rx="28"/><text x="720" y="325" text-anchor="middle">Coverage (Subscriber)</text>
+<rect x="920" y="210" width="180" height="100" fill="#fff2cc" stroke="#bf9000" rx="14"/><text x="1010" y="265" text-anchor="middle">uvm_scoreboard</text>
+<!-- interfaces -->
+<rect x="20" y="652" width="200" height="34" fill="#fce5cd" stroke="#e6b800" stroke-dasharray="5 3" rx="4"/><text x="120" y="674" text-anchor="middle">IF Virtual Interface</text>
+<rect x="250" y="652" width="200" height="34" fill="#fce5cd" stroke="#e6b800" stroke-dasharray="5 3" rx="4"/><text x="350" y="674" text-anchor="middle">LSU Virtual Interface</text>
+<rect x="480" y="652" width="190" height="34" fill="#fce5cd" stroke="#e6b800" stroke-dasharray="5 3" rx="4"/><text x="575" y="674" text-anchor="middle">RVFI Internal Interface</text>
+<rect x="700" y="652" width="190" height="34" fill="#fce5cd" stroke="#e6b800" stroke-dasharray="5 3" rx="4"/><text x="795" y="674" text-anchor="middle">System Control Interface</text>
+<!-- DUT + SVA (drawn below boundary in original; keep as-is) -->
+<rect x="250" y="696" width="520" height="0" fill="none" stroke="none"/>
+</svg>
+<p class="figcap">Figure 1 — Baseline architecture (redrawn for discussion; the authoritative source is the drawio/jpg, which is not modified). DUT and "Assertions (SVA Module) bind cv32e40p_top" sit below the interfaces in the original drawing.</p>
+</div>
+<p>What the baseline says: three active agents (System Control, IF, LSU) each with sequencer/driver/input monitor; two extra passive agents (IF/LSU) each holding only an output monitor; a passive RVFI monitor with an "Internal State Monitor"; a subscriber Reference Model, a subscriber Coverage component, one <code>uvm_scoreboard</code>; four virtual interfaces; virtual sequences + v_sqr; an env_cfg; an SVA module bound into <code>cv32e40p_top</code>.</p>
+
+<h2>3. Review of the baseline — gaps and weaknesses</h2>
+<p>Verdict first: the baseline gets the <b>shape</b> right (pin-level UVM, slave agents on the two OBI ports, retire-level observation, reference-model compare, SVA by bind). The issues are missing definitions and a few responsibility/placement mistakes that would block or mislead implementation:</p>
+
+<div class="gap"><b>G1 — No test/top-level structure <span class="tag t-major">major</span></b><br>
+No <code>uvm_test</code> layer, no <code>tb_top</code> module, no stated owner of clock generation, no statement of where the DUT/interfaces are instantiated and how virtual interfaces reach config_db. <i>Impact:</i> first week of implementation stalls on conventions every test relies on.</div>
+
+<div class="gap"><b>G2 — The "RVFI Internal Interface" is a wish, not a design <span class="tag t-critical">critical</span></b><br>
+The RTL has <b>no RVFI port</b> (verified: zero <code>rvfi</code> matches under <code>rtl/</code>). The baseline names a "RVFI Monitor (Internal State Monitor)" without defining which internal signals are sampled, how a retire event is detected, how flushed/killed instructions are excluded, or what the retire transaction contains. This component carries the whole checking strategy — it must be fully specified.</div>
+
+<div class="gap"><b>G3 — Duplicated/active-passive monitor split on the same pins <span class="tag t-major">major</span></b><br>
+"IF Agent (Active): Input Monitor" + "IF Agent (Passive): Output Monitor" on one interface (same for LSU) = two monitors observing the same signals, ambiguous ownership ("input/output" from whose perspective?), duplicated code, two analysis sockets for one transaction stream. One monitor per physical interface can observe both address and response phases.</div>
+
+<div class="gap"><b>G4 — Reference model responsibilities undefined <span class="tag t-critical">critical</span></b><br>
+Since no external ISS is allowed, the RM is a hand-built RV32IM ISS in SystemVerilog. The baseline does not state its state (PC/GPRs/memory), what it consumes (fetched vs retired stream — critical distinction because of speculative prefetch and flushed branch targets), what it predicts, or how it resynchronizes on reset/illegal-instruction traps.</div>
+
+<div class="gap"><b>G5 — Monolithic scoreboard, undefined inputs <span class="tag t-major">major</span></b><br>
+Four anonymous arrows into <code>uvm_scoreboard</code>; no matching semantics (expected-vs-actual? bus-vs-retire?), and no group-level datapath visibility — yet the stated checking philosophy asks for scoreboards on major block groups (register file, ALU…) specifically to ease debug, but not per-module.</div>
+
+<div class="gap"><b>G6 — No program/stimulus architecture <span class="tag t-critical">critical</span></b><br>
+Who builds the executed machine code? Where does the hex live? How is it loaded identically into instruction model, data model and RM shadow? How do directed vs random programs get selected per test? None of this exists in the baseline; the IF/LSU drivers' stimulus role (they are <i>responders</i>, shaping gnt/rvalid timing) is not stated, so "sequencer" semantics are ambiguous.</div>
+
+<div class="gap"><b>G7 — No end-of-test / pass-fail mechanism <span class="tag t-major">major</span></b><br>
+Nothing determines when a program finishes or what constitutes pass/fail (no ecall/ebreak semantics in scope; no CSR to read). A mailbox store convention + watchdog + drain/quiesce rule + check_phase reporting must be architected.</div>
+
+<div class="gap"><b>G8 — No reset architecture <span class="tag t-major">major</span></b><br>
+Reset owner, reset sequencing (before/while config), mid-run reset scenarios, monitor/scoreboard/RM behavior on reset (drop in-flight, resync), reset assertions and reset coverage are all absent.</div>
+
+<div class="gap"><b>G9 — Coverage sampling undefined <span class="tag t-minor">minor</span></b><br>
+"Coverage (Subscriber)" — subscribed to what? Sampling <i>fetched</i> instructions would pollute coverage with speculatively-fetched, never-executed words (branch shadows). Committed-stream sampling must be the rule for ISA coverage; protocol coverage belongs to the interface monitors.</div>
+
+<div class="gap"><b>G10 — Missing engineering details layered around the core idea <span class="tag t-minor">minor</span></b><br>
+No transaction class definitions, no agent configuration objects (delay distributions, outstanding limits), no timeout/watchdog, no logging/tracing conventions (disassembly for debug), no misaligned-split bus matching model, no outstanding/in-order enforcement rules for the slave drivers (P1–P3).</div>
+
+<h2>4. Proposed changes (baseline → proposal)</h2>
+<div class="chg"><b>C1.</b> Add the missing skeleton: <code>tb_top</code> module (clock gen, interface instances, DUT, binds), <code>cv32e40p_base_test</code> layer, <code>cv32e40p_env</code>, config_db conventions. <i>(fixes G1)</i></div>
+<div class="chg"><b>C2.</b> Specify the retire-observation path: <code>cv32e40p_rvfi_if</code> probe interface <b>bound into</b> <code>cv32e40p_core</code> (same non-intrusive precedent the RTL itself uses), with an explicit tapped-signal list and a formal <code>rvfi_trans</code>. <i>(fixes G2)</i></div>
+<div class="chg"><b>C3.</b> Merge the active/passive split: one <b>active OBI slave agent per interface</b> (<code>if_agent</code>, <code>lsu_agent</code>), each with sequencer + slave driver + <b>one monitor</b> publishing request-phase and completed-transaction items. The separate "passive agents with output monitors" are removed; passive behavior remains available via <code>is_active</code> config. <i>(fixes G3)</i></div>
+<div class="chg"><b>C4.</b> Fully specify <code>ref_model</code> as our own SV RV32IM ISS driven by the <b>retired</b> stream; define state, per-instruction step, predictions (rd value, next PC incl. trap redirect, memory effects), shadow memory, disassembler. <i>(fixes G4)</i></div>
+<div class="chg"><b>C5.</b> Keep one <code>uvm_scoreboard</code> but define it as three collaborating compare units under one roof (retire compare, LSU-bus matcher with misaligned reassembly, fetch-sanity), plus a separate small <code>datapath_checker</code> for register-file write-port/X0 checks (group-level debug visibility without per-module scoreboards). <i>(fixes G5 + F3)</i></div>
+<div class="chg"><b>C6.</b> Add the program path: <code>program generator</code> (SV source: directed suites + constrained-random streams emitting encoded RV32IM words) → <code>program_loader</code> → identical images into <code>instr_mem_model</code>, <code>data_mem_model</code> and RM shadow memory. Test selects program by name/seed. <i>(fixes G6)</i></div>
+<div class="chg"><b>C7.</b> Add end-of-test &amp; time control: magic-address <b>mailbox store</b> (handled in <code>lsu_agent</code> data memory model) + retire watchdog in <code>sys_ctrl_agent</code> + drain rule + check_phase pass/fail. <i>(fixes G7)</i></div>
+<div class="chg"><b>C8.</b> Add reset architecture: reset policy in env_cfg, reset stretch/mid-run scenarios in sys_ctrl sequences, reset-aware monitors/RM/scoreboard (drop &amp; resync), reset assertions and reset coverage. <i>(fixes G8)</i></div>
+<div class="chg"><b>C9.</b> Split coverage by source: ISA/scenario coverage on the <b>committed</b> stream (<code>instr_coverage</code> subscriber fed by rvfi_monitor); protocol coverage (delays, outstanding occupancy, back-to-back, misaligned pairs, byte-enable patterns) owned by the interface monitors. <i>(fixes G9 + F4)</i></div>
+<div class="chg"><b>C10.</b> Add the missing engineering layer: transaction catalog, agent cfg objects, watchdogs, log/disasm conventions, in-order/outstanding rules in slave drivers. <i>(fixes G10)</i></div>
+</div>
+
+<h2>5. Proposed testbench architecture (final proposal)</h2>
+<div class="fig">
+<svg width="1180" height="820" viewBox="0 0 1180 820" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,Arial" font-size="12">
+<defs>
+<marker id="s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#2456a6"/></marker>
+<marker id="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#1a9e4b"/></marker>
+<marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#c0392b"/></marker>
+<marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#8e44ad"/></marker>
+</defs>
+<text x="10" y="20" font-weight="bold">SIGNAL COLORS —</text>
+<text x="130" y="20" fill="#2456a6">■ stimulus / programming</text>
+<text x="320" y="20" fill="#1a9e4b">■ observation (analysis)</text>
+<text x="520" y="20" fill="#c0392b">■ expected vs actual</text>
+<text x="700" y="20" fill="#8e44ad">■ configuration</text>
+<text x="850" y="20" fill="#555">□ dashed = bind / static tap</text>
+
+<!-- test layer -->
+<rect x="20" y="40" width="320" height="46" fill="#fff" stroke="#888" rx="6"/><text x="30" y="60">cv32e40p_base_test + tests</text><text x="30" y="76" fill="#666">(select program · knobs · seed)</text>
+<rect x="380" y="40" width="200" height="46" fill="#fff" stroke="#888" rx="6"/><text x="390" y="60">sys / if / lsu sequences</text><text x="390" y="76" fill="#666">(reset, delay profiles, errors)</text>
+<rect x="620" y="40" width="230" height="46" fill="#fff" stroke="#888" rx="6"/><text x="630" y="60">program sequences</text><text x="630" y="76" fill="#666">(directed + random RV32IM words)</text>
+
+<!-- env -->
+<rect x="10" y="110" width="1160" height="470" fill="#fbf9ff" stroke="#b7a6d8" stroke-width="2"/>
+<text x="22" y="132" fill="#7a63ad" font-weight="bold">cv32e40p_env</text>
+<rect x="24" y="142" width="150" height="42" fill="#fff" stroke="#888" rx="5"/><text x="99" y="160" text-anchor="middle">env_cfg</text><text x="99" y="176" text-anchor="middle" fill="#666">(+ agent cfgs)</text>
+<rect x="200" y="142" width="170" height="42" fill="#fff" stroke="#888" rx="5"/><text x="285" y="160" text-anchor="middle">program_loader</text><text x="285" y="176" text-anchor="middle" fill="#666">(hex images)</text>
+<rect x="396" y="142" width="150" height="42" fill="#fff" stroke="#888" rx="5"/><text x="471" y="168" text-anchor="middle">v_sqr</text>
+
+<!-- agents -->
+<rect x="24" y="200" width="268" height="180" fill="#dbe7fb" stroke="#6f97d8"/><text x="158" y="220" text-anchor="middle" font-weight="bold">sys_ctrl_agent (active)</text>
+<rect x="40" y="232" width="110" height="30" fill="#fff" stroke="#888" rx="4"/><text x="95" y="252" text-anchor="middle">sequencer</text>
+<rect x="160" y="232" width="120" height="30" fill="#fff" stroke="#888" rx="4"/><text x="220" y="252" text-anchor="middle">driver</text>
+<rect x="40" y="272" width="240" height="30" fill="#fff" stroke="#888" rx="4"/><text x="160" y="292" text-anchor="middle">monitor (cfg/reset events)</text>
+<rect x="40" y="312" width="240" height="30" fill="#fff" stroke="#888" rx="4"/><text x="160" y="332" text-anchor="middle">retire watchdog · timeout</text>
+
+<rect x="316" y="200" width="280" height="180" fill="#dbe7fb" stroke="#6f97d8"/><text x="456" y="220" text-anchor="middle" font-weight="bold">if_agent (active OBI slave)</text>
+<rect x="332" y="232" width="110" height="30" fill="#fff" stroke="#888" rx="4"/><text x="387" y="252" text-anchor="middle">sequencer</text>
+<rect x="452" y="232" width="130" height="30" fill="#fff" stroke="#888" rx="4"/><text x="517" y="252" text-anchor="middle">slave driver</text>
+<rect x="332" y="272" width="250" height="30" fill="#fff" stroke="#888" rx="4"/><text x="457" y="292" text-anchor="middle">instr_mem_model (program)</text>
+<rect x="332" y="312" width="250" height="30" fill="#fff" stroke="#888" rx="4"/><text x="457" y="332" text-anchor="middle">monitor (reqs, rsp) + prot. cov</text>
+
+<rect x="620" y="200" width="282" height="180" fill="#dbe7fb" stroke="#6f97d8"/><text x="761" y="220" text-anchor="middle" font-weight="bold">lsu_agent (active OBI slave)</text>
+<rect x="636" y="232" width="110" height="30" fill="#fff" stroke="#888" rx="4"/><text x="691" y="252" text-anchor="middle">sequencer</text>
+<rect x="756" y="232" width="130" height="30" fill="#fff" stroke="#888" rx="4"/><text x="821" y="252" text-anchor="middle">slave driver</text>
+<rect x="636" y="272" width="250" height="30" fill="#fff" stroke="#888" rx="4"/><text x="761" y="292" text-anchor="middle">data_mem_model + EOT mailbox</text>
+<rect x="636" y="312" width="250" height="30" fill="#fff" stroke="#888" rx="4"/><text x="761" y="332" text-anchor="middle">monitor (reqs, rsp) + prot. cov</text>
+
+<rect x="926" y="200" width="238" height="100" fill="#dbe7fb" stroke="#6f97d8"/><text x="1045" y="222" text-anchor="middle" font-weight="bold">rvfi_monitor (passive)</text>
+<rect x="940" y="234" width="210" height="30" fill="#fff" stroke="#888" rx="4"/><text x="1045" y="254" text-anchor="middle">samples cv32e40p_rvfi_if (bind)</text>
+<rect x="940" y="272" width="210" height="22" fill="#fff" stroke="#888" rx="4"/><text x="1045" y="288" text-anchor="middle">builds rvfi_trans</text>
+
+<!-- checking plane -->
+<rect x="316" y="430" width="240" height="64" fill="#d9ead3" stroke="#6aa84f" rx="8"/><text x="436" y="452" text-anchor="middle" font-weight="bold">ref_model (SV ISS RV32IM)</text><text x="436" y="468" text-anchor="middle" fill="#555">pc · gprs · shadow mem · disasm</text><text x="436" y="484" text-anchor="middle" fill="#555">predicts rd / next-PC / mem ops</text>
+<rect x="620" y="430" width="282" height="64" fill="#fff2cc" stroke="#bf9000" rx="8"/><text x="761" y="446" text-anchor="middle" font-weight="bold">uvm_scoreboard</text><text x="761" y="462" text-anchor="middle" fill="#555">retire compare (exp vs actual)</text><text x="761" y="478" text-anchor="middle" fill="#555">LSU bus matcher (+misaligned split)</text>
+<rect x="926" y="330" width="238" height="64" fill="#d9ead3" stroke="#6aa84f" rx="8"/><text x="1045" y="350" text-anchor="middle" font-weight="bold">instr_coverage</text><text x="1045" y="366" text-anchor="middle" fill="#555">ISA/scenario cov on committed</text><text x="1045" y="382" text-anchor="middle" fill="#555">instructions only</text>
+<rect x="926" y="430" width="238" height="64" fill="#d9ead3" stroke="#6aa84f" rx="8"/><text x="1045" y="450" text-anchor="middle" font-weight="bold">datapath_checker</text><text x="1045" y="466" text-anchor="middle" fill="#555">RF write-ports (B-priority) ·</text><text x="1045" y="482" text-anchor="middle" fill="#555">x0 hard-zero</text>
+
+<!-- arrows obs -->
+<line x1="1045" y1="300" x2="1045" y2="330" stroke="#1a9e4b" stroke-width="2" marker-end="url(#o)"/>
+<line x1="1045" y1="394" x2="1045" y2="430" stroke="#1a9e4b" stroke-width="2" marker-end="url(#o)"/>
+<line x1="940" y1="283" x2="556" y2="400" stroke="#1a9e4b" stroke-width="2" marker-end="url(#o)"/>
+<text x="700" y="345" fill="#1a9e4b">rvfi_trans (committed)</text>
+<line x1="436" y1="462" x2="316" y2="462" stroke="#1a9e4b" stroke-width="2"/>
+<line x1="556" y1="462" x2="620" y2="462" stroke="#c0392b" stroke-width="2" marker-end="url(#e)"/>
+<text x="548" y="450" fill="#c0392b">expected</text>
+<line x1="761" y1="380" x2="761" y2="430" stroke="#1a9e4b" stroke-width="2" marker-end="url(#o)"/>
+<text x="768" y="410" fill="#1a9e4b">lsu obi_trans</text>
+
+<!-- tb_top -->
+<rect x="10" y="596" width="1160" height="210" fill="#fdfcfb" stroke="#b0743a" stroke-width="2"/>
+<text x="22" y="618" fill="#b0743a" font-weight="bold">tb_top (SV module) — clock gen · interface instances · DUT · binds</text>
+<rect x="24" y="630" width="200" height="34" fill="#fce5cd" stroke="#e6b800" rx="4"/><text x="124" y="652" text-anchor="middle">sys_ctrl_if (vif)</text>
+<rect x="250" y="630" width="200" height="34" fill="#fce5cd" stroke="#e6b800" rx="4"/><text x="350" y="652" text-anchor="middle">if_vif (instr OBI)</text>
+<rect x="476" y="630" width="200" height="34" fill="#fce5cd" stroke="#e6b800" rx="4"/><text x="576" y="652" text-anchor="middle">lsu_vif (data OBI)</text>
+<rect x="702" y="630" width="240" height="34" fill="#fce5cd" stroke="#e6b800" stroke-dasharray="5 3" rx="4"/><text x="822" y="652" text-anchor="middle">cv32e40p_rvfi_if (bind cv32e40p_core)</text>
+<rect x="968" y="630" width="196" height="34" fill="#fce5cd" stroke="#e6b800" rx="4"/><text x="1066" y="652" text-anchor="middle">clk/rst_gen</text>
+<rect x="250" y="692" width="560" height="64" fill="#f4cccc" stroke="#c0392b" rx="8"/><text x="530" y="716" text-anchor="middle" font-weight="bold">DUT — cv32e40p_top (RV32IM, all extras off)</text><text x="530" y="736" text-anchor="middle" fill="#555">instr OBI · data OBI · sys pins</text>
+<rect x="860" y="692" width="304" height="64" fill="#fff" stroke="#c0392b" stroke-dasharray="6 3" rx="8"/><text x="1012" y="712" text-anchor="middle" font-weight="bold">sva_module (bind cv32e40p_top)</text><text x="1012" y="728" text-anchor="middle" fill="#555">OBI protocol · reset · tie-offs ·</text><text x="1012" y="744" text-anchor="middle" fill="#555">pipeline invariants</text>
+
+<!-- wiring from agents to vifs -->
+<line x1="160" y1="380" x2="124" y2="630" stroke="#2456a6" stroke-width="2" marker-end="url(#s)"/>
+<line x1="456" y1="380" x2="350" y2="630" stroke="#2456a6" stroke-width="2" marker-end="url(#s)"/>
+<line x1="761" y1="380" x2="576" y2="630" stroke="#2456a6" stroke-width="2" marker-end="url(#s)"/>
+<line x1="1045" y1="300" x2="1045" y2="596" stroke="#fff" stroke-width="6" opacity="0"/>
+<line x1="822" y1="630" x2="822" y2="596" stroke="#1a9e4b" stroke-width="0" />
+<line x1="942" y1="300" x2="990" y2="596" stroke="#1a9e4b" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="1000" y="470" fill="#1a9e4b">probe (static tap)</text>
+<line x1="350" y1="664" x2="350" y2="692" stroke="#2456a6" stroke-width="2"/>
+<line x1="576" y1="664" x2="576" y2="692" stroke="#2456a6" stroke-width="2"/>
+<line x1="124" y1="664" x2="230" y2="720" stroke="#2456a6" stroke-width="2"/>
+<line x1="860" y1="724" x2="810" y2="724" stroke="#c0392b" stroke-width="2" stroke-dasharray="6 4"/>
+<!-- cfg arrows -->
+<line x1="99" y1="184" x2="99" y2="200" stroke="#8e44ad" stroke-width="1.6" marker-end="url(#c)"/>
+<line x1="99" y1="184" x2="456" y2="200" stroke="#8e44ad" stroke-width="1.6" marker-end="url(#c)"/>
+<line x1="99" y1="184" x2="761" y2="200" stroke="#8e44ad" stroke-width="1.6" marker-end="url(#c)"/>
+<!-- program loader -->
+<line x1="285" y1="184" x2="456" y2="232" stroke="#2456a6" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#s)"/>
+<line x1="285" y1="184" x2="761" y2="232" stroke="#2456a6" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#s)"/>
+<line x1="285" y1="190" x2="360" y2="430" stroke="#2456a6" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#s)"/>
+<text x="290" y="320" fill="#2456a6">shadow / data / instr images (one source)</text>
+<!-- test to env -->
+<line x1="180" y1="86" x2="99" y2="142" stroke="#8e44ad" stroke-width="1.6" marker-end="url(#c)"/>
+<line x1="735" y1="86" x2="360" y2="142" stroke="#2456a6" stroke-width="1.6" marker-end="url(#s)"/>
+<line x1="480" y1="86" x2="471" y2="142" stroke="#2456a6" stroke-width="1.6" marker-end="url(#s)"/>
+<line x1="471" y1="184" x2="471" y2="200" stroke="#2456a6" stroke-width="1.6"/>
+<line x1="471" y1="184" x2="200" y2="216" stroke="#2456a6" stroke-width="1.6"/>
+<line x1="471" y1="184" x2="691" y2="216" stroke="#2456a6" stroke-width="1.6"/>
+</svg>
+<p class="figcap">Figure 2 — Proposed testbench architecture. Changes vs baseline are marked in §4 (C1–C10).</p>
+</div>
+
+<h3>5.1 Component catalog (implementable detail)</h3>
+<table>
+<tr><th>Component</th><th>Kind / active?</th><th>Responsibility</th><th>Inputs → Outputs</th><th>Key config</th></tr>
+<tr><td><code>tb_top</code></td><td>SV module</td><td>Clk generation, interface instances, DUT instance, binds (rvfi probe, sva_module), config_db export of vifs, waves dump.</td><td>—</td><td>clk period (+arg), plusargs</td></tr>
+<tr><td><code>cv32e40p_base_test</code> (+directed tests)</td><td>uvm_test</td><td>Build env, set env_cfg fields (program name, seed, delay profile, reset policy), start virtual sequence, run-phase timeout.</td><td>test registry</td><td>+<code>CV32E40P_TEST</code>, seed</td></tr>
+<tr><td><code>cv32e40p_env</code></td><td>uvm_env</td><td>Owns env_cfg, agents, rvfi_monitor, ref_model, uvm_scoreboard, datapath_checker, instr_coverage, program_loader, v_sqr; connects analysis channels.</td><td>—</td><td>env_cfg</td></tr>
+<tr><td><code>env_cfg</code></td><td>uvm_object</td><td>All knobs: boot/mtvec/dm addrs, hart_id, tie-offs, program select, slave delay profiles, outstanding limits (=2/2), reset policy (count/timing), watchdog cycles, verbosity, coverage enables.</td><td>—</td><td>—</td></tr>
+<tr><td><code>v_sqr</code> + virtual sequences</td><td>uvm_sequencer</td><td>Orchestrates sys_ctrl/if/lsu sequencers: reset scenarios, coordinated delay-profile changes, phase timing. Thin but kept (see D10).</td><td>sub-sequencer handles</td><td>—</td></tr>
+<tr><td><code>sys_ctrl_agent</code></td><td>active</td><td>Drives reset sequence + static config + tie-offs; monitors those signals (records events for resync); owns the retire watchdog (fails test if no retire within N cycles) and global timeout.</td><td><code>sys_ctrl_if</code></td><td>reset cycles, mid-reset times, watchdog N</td></tr>
+<tr><td><code>if_agent</code></td><td>active OBI <b>slave</b></td><td><code>slave driver</code>: grants fetch requests, returns rvalid+rdata from <code>instr_mem_model</code>, shapes gnt/rvalid delays (0..max, bursts), enforces ≤2 outstanding and in-order responses. <code>monitor</code>: logs address/response phases → analysis items; protocol coverage (delay, outstanding occupancy, back-to-back, redirect fetches).</td><td><code>if_vif</code> ← DUT fetches</td><td>delay distributions, profile switching</td></tr>
+<tr><td><code>instr_mem_model</code></td><td>class (in if_agent)</td><td>Word-indexed program RAM, loaded by program_loader; read-only duty; side-effect-free reads (speculative prefetch safety, P1).</td><td>program image</td><td>—</td></tr>
+<tr><td><code>lsu_agent</code></td><td>active OBI <b>slave</b></td><td>As if_agent for the data port: serves loads/stores with delay shaping against <code>data_mem_model</code> (byte-enable semantics), ≤2 outstanding, in-order. Hosts the <b>EOT mailbox</b>: a store to <code>SIM_CTRL_ADDR (0x2000_0000)</code> value 1 signals end-of-test; value written ≠1 logged as test message. Monitor logs transactions incl. misaligned transaction pairs + protocol coverage.</td><td><code>lsu_vif</code> ← DUT data accesses</td><td>delay distributions</td></tr>
+<tr><td><code>data_mem_model</code></td><td>class (in lsu_agent)</td><td>Byte-addressable RAM with byte-enable section access; initialized from program data section; stores update it; load data returned to DUT.</td><td>program data image</td><td>base/limit</td></tr>
+<tr><td><code>cv32e40p_rvfi_if</code></td><td>SV interface, <b>bind cv32e40p_core</b></td><td>Static tap of core internals → exposes a clean retire bundle (explicit tap list in §5.2).</td><td>core internals</td><td>—</td></tr>
+<tr><td><code>rvfi_monitor</code></td><td>passive uvm_monitor</td><td>Samples the probe interface; detects a <b>committed</b> instruction; drops flushed/killed ones; marks resets; emits <code>rvfi_trans</code> (see §5.3) on commit order; logs disassembly at UVM_MEDIUM.</td><td>cv32e40p_rvfi_if → analysis ports to ref_model, uvm_scoreboard, instr_coverage, datapath_checker</td><td>—</td></tr>
+<tr><td><code>program_loader</code></td><td>uvm_object (env util)</td><td>Single source of memory content: runs the selected program sequence (or reads <code>+HEX=</code> file via $readmemh), then writes the text image to instr_mem_model, data image to data_mem_model, full image to ref_model shadow. Guarantees the three sinks are identical.</td><td>program sequences / hex</td><td>program name, seed</td></tr>
+<tr><td><code>ref_model</code></td><td>uvm_subscriber (our SV ISS)</td><td>State: <code>pc, x[31:0], shadow mem</code>. Per <code>rvfi_trans</code>: step over the same instruction word; produce <code>exp_trans</code> {exp_rd_addr/data (loads included from shadow), exp_next_pc (incl. branch/jump/illegal-trap redirect), exp_mem_op {addr,size,we,be,data incl. misaligned split pairs}}; apply store to shadow; resync on reset marker; disasm for logs.</td><td>rvfi_trans → exp_trans to scoreboard</td><td>—</td></tr>
+<tr><td><code>uvm_scoreboard</code></td><td>uvm_subscriber</td><td>Three compare units: (1) <b>retire compare</b> — in-order match of exp_trans vs rvfi_trans (pc, rd, mem op); (2) <b>LSU bus matcher</b> — every committed load/store must appear on data OBI as one transaction, or the legal two-transaction split (lowest address first), with consistent addr/be/wdata; (3) <b>fetch sanity</b> — fetch addresses word-aligned, inside map; first fetch after reset = boot_addr. Reset events flush all queues. check_phase: queues drained, error count → UVM pass/fail with expected-vs-actual dump.</td><td>exp_trans (RM), rvfi_trans, lsu obi_trans, sys events</td><td>verbosity</td></tr>
+<tr><td><code>datapath_checker</code></td><td>uvm_subscriber (small)</td><td>Register-file visibility for debug: (a) every predicted rd write appears at the RF write ports; (b) same-cycle same-address collision → array receives load-port (B) value (P5); (c) x0 reads back 0 at all times (port-write to x0 has no effect). No other internal checks (see D7 note on why not per-module ALU/MUL checkers).</td><td>rvfi_trans + RF-port taps in cv32e40p_rvfi_if</td><td>enable</td></tr>
+<tr><td><code>instr_coverage</code></td><td>uvm_subscriber</td><td>All ISA/scenario covergroups, sampled on the <b>committed</b> stream only: opcode×funct3×funct7 map; rd/rs1/rs2 incl. x0/x1/x2/sp-preserving patterns; immediate value corners; branch taken/not-taken × direction; jump links; load/store size×offset grid incl. misaligned-split cases; load-use and producer-consumer distances; mul/div operand corners (0, ±1, MSB set, 32'h8000_0000, divide-by-zero, overflow); illegal-encoding categories (a)–(c) → mtvec redirect; reset-then-rerun; multi-cycle EX + flush scenario.</td><td>rvfi_trans, sys events</td><td>enable knobs</td></tr>
+<tr><td><code>sva_module</code></td><td>SV module, bind cv32e40p_top</td><td>Concurrent assertions: OBI protocol on both ports (req stable till gnt; gnt→rvalid bounds; rvalid exactly 1 cycle/req; no rvalid w/o grant; we/be/wdata stable; ≤2 outstanding; word-aligned fetch addr), reset invariants (no req during reset; first fetch after rst = boot-aligned), tie-off invariants (status outputs quiet, since irq/debug never fire with ties), pipeline invariants (no WB write without preceding valid issue; no flush-of-retired effect), no X on control after reset.</td><td>DUT pins + core_i internals</td><td>—</td></tr>
+</table>
+<p class="small">Naming follows the baseline's established names wherever they were correct (agents, v_sqr, env_cfg, uvm_scoreboard, ref_model, coverage, RVFI monitor, SVA bind). Removed names: the two "…Agent (Passive)" blocks (merged per C3).</p>
+
+<h3>5.2 Probe tap list for <code>cv32e40p_rvfi_if</code> (bind target: <code>cv32e40p_core</code>)</h3>
+<p>Chosen to be minimal and stable (all are core-scope signals / instance paths the RTL itself already uses for its internal verification logic):</p>
+<table>
+<tr><th>Tapped signal (example path)</th><th>Purpose</th></tr>
+<tr><td><code>clk_i, rst_ni</code></td><td>sampling, reset marker</td></tr>
+<tr><td><code>pc_if, pc_id</code></td><td>instruction addresses</td></tr>
+<tr><td><code>is_decoding, id_valid, ex_valid, lsu_ready_wb</code></td><td>commit / completion events</td></tr>
+<tr><td><code>branch_decision</code>, controller flush/kill lines</td><td>exclude killed instructions; redirect events</td></tr>
+<tr><td>ID-stage instruction word (aligner output / <code>id_stage_i.instr</code>)</td><td>executed instruction bits</td></tr>
+<tr><td>RF write ports <code>we_a/waddr_a/wdata_a</code>, <code>we_b/waddr_b/wdata_b</code> (register_file instance)</td><td>architectural writes + datapath_checker arbitration</td></tr>
+<tr><td>EX result (ALU/mult path), load WB data</td><td>write value attribution</td></tr>
+<tr><td>LSU internal: <code>data_misaligned</code>, <code>data_misaligned_ex</code></td><td>split-transaction attribution for the bus matcher</td></tr>
+<tr><td><code>id_stage_i.illegal_insn_dec</code></td><td>trap attribution (illegal → mtvec redirect)</td></tr>
+</table>
+<p class="small">Design note: the RTL's own <code>`ifndef SYNTHESIS</code> block already references <code>id_stage_i.*</code>, <code>controller_i.*</code>, <code>cs_registers_i.*</code> hierarchically — same technique, zero RTL impact. If a specific internal name shifts on an RTL uprev, only this one interface file is touched (single point of maintenance).</p>
+
+<h3>5.3 Transaction catalog</h3>
+<table>
+<tr><th>Class</th><th>Producer</th><th>Fields</th></tr>
+<tr><td><code>sys_ctrl_trans</code></td><td>sys_ctrl seq/monitor</td><td>{event: reset_assert/reset_release/config_applied/tieoff_snapshot, boot_addr, mtvec, hart_id, dm_halt, dm_exc, time}</td></tr>
+<tr><td><code>obi_trans</code></td><td>if/lsu monitors</td><td>{port: if/lsu, we, addr, be, wdata, rdata, gnt_delay, rvalid_delay, t_req, t_gnt, t_rvalid, outstanding_lvl, rsp_idx}</td></tr>
+<tr><td><code>rvfi_trans</code></td><td>rvfi_monitor</td><td>{order_id, pc, insn, rs1/rs2 (addr+data), rd (addr+data, valid), mem {valid,we,size,addr,be,wdata,rdata,split}, trap_kind (none/illegal), next_pc_actual, reset_marker, t}</td></tr>
+<tr><td><code>exp_trans</code></td><td>ref_model</td><td>{exp_pc, exp_next_pc, exp_rd (addr,data,valid), exp_mem (same shape), exp_trap, order_id}</td></tr>
+</table>
+
+<h3>5.4 Transaction / memory maps</h3>
+<table>
+<tr><th>Region</th><th>Address</th><th>Owner</th></tr>
+<tr><td>Program (text)</td><td><code>boot_addr</code>-based, e.g. <code>0x0000_0080</code>+ (word aligned)</td><td>instr_mem_model (+ RM shadow)</td></tr>
+<tr><td>Data window</td><td>e.g. <code>0x0001_0000 .. 0x0001_FFFF</code></td><td>data_mem_model (+ RM shadow)</td></tr>
+<tr><td>EOT mailbox</td><td><code>0x2000_0000</code> (store 1 → finish)</td><td>lsu_agent mailbox</td></tr>
+<tr><td>mtvec target</td><td>aligned handler area with a small trap-exit stub that stores to mailbox or jumps back per program design</td><td>program image</td></tr>
+</table>
+
+<h2>6. Flows</h2>
+<h3>6.1 Stimulus flow</h3>
+<ol class="tight">
+<li>Test programs env_cfg (program name/seed, delays, reset policy) → env builds everything; program_loader materializes the image (generator run or <code>+HEX</code> $readmemh) and loads instr model, data model, RM shadow identically.</li>
+<li>sys_ctrl_agent sequence: assert reset ≥ policy cycles → apply static config + tie-offs → release reset → set <code>fetch_enable_i=1</code>.</li>
+<li>Core fetches from boot; if_agent slave driver answers (gnt/rvalid with configured delay distribution; ≤2 outstanding; in-order).</li>
+<li>Program executes: loads/stores answered by lsu_agent (data from model; byte/BE semantics; misaligned ops arrive as the legal two requests).</li>
+<li>Program termination: final store <code>*0x2000_0000 = 1</code> → mailbox raises EOT → env drains (outstanding OBI = 0, retire idle) → check_phase.</li>
+<li>Optional phases a virtual sequence can inject at configured times: delay-profile switch (0-wait ↔ max backpressure), mid-run reset (reset policy), program-directed illegal-encoding blocks routed to mtvec stub then back.</li>
+</ol>
+<h3>6.2 Checking flow</h3>
+<ol class="tight">
+<li>rvfi_monitor emits one <code>rvfi_trans</code> per committed instruction, in commit order.</li>
+<li>ref_model steps it → <code>exp_trans</code> (arch effects + next PC + mem effects + trap).</li>
+<li>uvm_scoreboard: (a) retire compare exp vs actual — pc chain, rd addr+data, mem op identity; (b) LSU bus matcher — each committed mem op ↔ observed data-OBI transaction(s), with misaligned reassembly (lowest addr first); (c) fetch sanity per §5.1. Anything out of reset queues is flushed on a reset event.</li>
+<li>datapath_checker gives RF-level isolation (which port/write/win) to turn "wrong rd at instr #N" into "RF port B arbitration / forward path" evidence immediately.</li>
+<li>sva_module continuously watches protocol/reset/invariant properties (sim fails at assertion time with exact signal context).</li>
+<li>Watchdog: no retire for N cycles (hang) → UVM_FATAL with last-PC context; global timeout backstop.</li>
+</ol>
+<h3>6.3 Coverage flow</h3>
+<ol class="tight">
+<li><code>instr_coverage</code> samples every committed <code>rvfi_trans</code> (never the fetched stream) → ISA/scenario covergroups per §5.1; reset events toggle scenario crosses.</li>
+<li>Interface monitors own protocol coverage: gnt/rvalid delay values, outstanding-level occupancy 0..2, back-to-back requests, misaligned split pairs, byte-enable patterns, redirect-fetch events.</li>
+<li>Report merge per seed; coverage closure assessed over the regression (per plan, updated later).</li>
+</ol>
+<h2>7. Assertion architecture</h2>
+<ul class="tight">
+<li><b>Location:</b> <code>sva_module</code> bound into <code>cv32e40p_top</code> (baseline's correct choice — kept). Protocol properties may be implemented as interface-embedded assert modules for reuse, instantiated by the bind module — single ownership retained.</li>
+<li><b>Groups:</b> instr-OBI protocol (P1–P2), data-OBI protocol (P2–P3), reset invariants, first-fetch/boot address, tie-off quietness (no irq ack / no debug status change / no sleep since inputs are tied), pipeline invariants (writeback only after valid issue; x0 never written non-zero — duplicated cheaply in datapath_checker as data check), X-propagation guards post-reset.</li>
+<li><b>Disable policy:</b> all properties <code>disable iff (!rst_ni)</code>; protocol assertions additionally hold during mid-run resets via the reset-event flush semantics.</li>
+</ul>
+<h2>8. Reset architecture</h2>
+<ul class="tight">
+<li><b>Driver:</b> sys_ctrl_agent (reset polarities/lengths from env_cfg: initial long reset; optional mid-run shorts; deassert synchronous to clk).</li>
+<li><b>Observers:</b> sys_ctrl monitor records reset events (broadcast) → scoreboard flushes queues, RM re-enters init state (pc=boot), monitors drop partial transactions, coverage marks reset cross.</li>
+<li><b>Checks:</b> SVA (no req during reset; first fetch after release = boot_addr; quiet tie-offs), scenario coverage (reset-while-fetch-in-flight, reset-while-load-outstanding, reset during multi-cycle MUL/DIV).</li>
+<li><b>After reset</b> the same program flow re-executes (memory images are stable; mailbox store re-arms EOT).</li>
+</ul>
+<h2>9. Error / negative-test architecture</h2>
+<ul class="tight">
+<li><b>Illegal encodings</b> (categories: undefined major opcodes; legal opcode + undefined funct3/funct7; reserved shift encodings) — produced by the program generator inside dedicated blocks; expected effect = fetch redirect to mtvec (checked via retire/PC chain; trap stub returns per program design). No CSR-side checks (out of goal).</li>
+<li><b>Timing stress:</b> worst-case gnt/rvalid delay combos incl. maximal outstanding occupancy, back-to-back bursts, delay profile switching mid-run.</li>
+<li><b>Reset-while-busy:</b> reset during outstanding transactions / multi-cycle ops (with resync semantics per §8).</li>
+<li><b>Hang detection:</b> retire watchdog + global timeout.</li>
+<li><b>Explicitly excluded:</b> OBI protocol-violation injection and OBI error responses — the core's OBI has no <code>err</code>/<code>rid</code>/<code>rready</code>, so legal slave behavior cannot include them; injecting master-side violations would test out-of-spec space. (Tool-side SVA still guards that <i>our own driver</i> never misbehaves.)</li>
+</ul>
+<h2>10. Configuration architecture</h2>
+<ul class="tight">
+<li>Single <code>env_cfg</code> at top; each agent receives a slim sub-cfg (delays, enables) — no duplicated knobs; is_active kept for agents (default ACTIVE) for possible reuse as pure monitors.</li>
+<li>Memories/program: one loader, three identical sinks (single source of truth) + <code>+HEX=<file></code> override for bring-up with externally assembled code.</li>
+<li>Register model: <b>not built</b> (CSR space is out of goal; nothing to model) — documented rejection, not an omission.</li>
+<li>Virtual interfaces distributed via config_db from tb_top; rvfi probe interface reaches UVM side through config_db resource sharing after bind.</li>
+</ul>
+<h2>11. Debug &amp; observability</h2>
+<ul class="tight">
+<li>Every <code>rvfi_trans</code> logs <code>order#, pc, disasm, &#8594;effects</code>; an immediate visual instruction trace.</li>
+<li>scoreboard errors print both sides (expected from RM vs actual) + the last 5 retired instructions + outstanding bus state — failure localization at instruction granularity; often directly at the responsible stage via datapath_checker context.</li>
+<li>Uniform verbosity IDs per component; <code>+UVM_VERBOSITY</code> + per-agent overrides; all monitors emit timestamped bus events at HIGH.</li>
+<li>Wave anchors: rvfi probe interface instance sits inside the core hierarchy — signals pre-grouped for the waves view.</li>
+</ul>
+<h2>12. Scalability &amp; reuse</h2>
+<ul class="tight">
+<li>Adding a test = new program sequence name; adding a timing scenario = new delay profile + virtual sequence — no TB edits.</li>
+<li>If future scope turns on C/FPU/cust: instr_coverage/RM are table-driven at the opcode level (extend decode tables; add FPU agent off APU pins); OBI slaves, scoreboard skeleton, probes generically reusable. No speculative extra components are built now.</li>
+<li>OBI slave agents are protocol-generic (usable on any OBI master DUT); only memory models + mailbox are DUT-specific.</li>
+</ul>
+<h2>13. Decision log (significant choices, with rejected alternatives)</h2>
+<div class="dec"><b>D1 — Retire-level end-to-end checking is the primary check.</b> The core is single-issue in-order; comparing every committed instruction's architectural effect against a golden SV ISS catches every datapath/control bug that matters to the goal. <i>Rejected:</i> per-stage instructional scoreboards (per philosophy: eases debug, not drowns it).</div>
+<div class="dec"><b>D2 — Pre-generated program in instruction memory (not a reactive fetch-time generator).</b> Both are sanctioned; pre-generation gives reproducible program/seed pairs, trivial expected-behavior computation in the RM (it reads the same image), and clean coverage attribution (no feedback loop between coverage and stimulus). Reactive answering is retained only as driver delay shaping.</div>
+<div class="dec"><b>D3 — RM consumes the committed stream, not the fetched stream.</b> Speculative prefetch + branch shadows make the fetched stream non-architectural. Committed-stream stepping keeps the ISS trivially in lockstep and makes flush semantics automatic (flushed words never reach the RM).</div>
+<div class="dec"><b>D4 — Hand-written SV ISS; no external ISS (Spike/whisper/OVP).</b> Methodology constraint (build-everything-yourself) + dependency-free regressions. Cost is contained: RV32IM only (≈47 instruction forms), no CSRs/privileged state beyond trap-target PC.</div>
+<div class="dec"><b>D5 — Single scoreboard with three compare units + one small datapath_checker.</b> Balances "not one monolith" vs "not per-module": all retire-vs-bus matching needs shared ordering context (natural home = one scoreboard); RF-port arbitration/x0 is a genuinely orthogonal concern with its own taps (small separate checker) — exactly the group-level debug aid requested.</div>
+<div class="dec"><b>D6 — One monitor per OBI interface; passive-agent duplicates removed.</b> Eliminates two monitors on the same pins and the input/output ambiguity; passive behavior still available via is_active for any block-level reuse.</div>
+<div class="dec"><b>D7 — No per-module ALU/MUL/DIV scoreboards and no forwarding live-check.</b> Those behaviors are fully observable at retire (RM computes the exact expected rd); stage-local duplicates would add maintenance without adding a single new bug found. Debug value is instead provided by granular expected-vs-actual messages + the RF-port checker + wave anchors. (Challenge-review tradeoff, explicitly recorded.)</div>
+<div class="dec"><b>D8 — EOT via mailbox store + watchdog; not ecall/ebreak.</b> ecall/ebreak are out of required scope; a magic store address is standard, observable on the existing data port, and needs no core features.</div>
+<div class="dec"><b>D9 — ISA coverage on committed stream; protocol coverage in monitors.</b> Avoids flush-pollution; keeps each coverage class next to the stream that owns its semantics.</div>
+<div class="dec"><b>D10 — v_sqr kept but deliberately thin.</b> Today's coordination is modest (reset + delay-profile timing vs phases). Removing it would merge fine, but the cost of one handle + virtual sequences is small and pays off for reset/scenario tests and future features; documented so it does not accrete responsibilities.</div>
+<div class="dec"><b>D11 — No register model/RAL.</b> CSR space is out of goal; RAL would be pure dead weight. Re-add if scope changes.</div>
+<div class="dec"><b>D12 — Bind-based RVFI probe instead of modifying RTL.</b> Zero impact on the design under verification; identical to the RTL's own internal-verification technique; single maintenance point on RTL uprevs. <i>Rejected:</i> editing RTL to add an RVFI port (violates "don't touch the DUT"; risks mask bugs behind instrumented code).</div>
+</div>
+<h2>14. Self-review (methodology checklist)</h2>
+<table>
+<tr><th>#</th><th>Review</th><th>Result</th></tr>
+<tr><td>1</td><td>DUT interfaces/behaviors supported?</td><td>All five pin groups served (clock/reset, static cfg, tie-offs, 2× OBI). Protocol rules P1–P4 mapped to drivers/monitors/SVA. Misaligned split handled by bus matcher. Outstanding limits 2/2 enforced.</td></tr>
+<tr><td>2</td><td>Specification capabilities?</td><td>All RV32IM semantics checkable end-to-end via RM; branch/jump/trap control flow via next-PC chain; memory semantics incl. byte/sign handling and split transactions.</td></tr>
+<tr><td>3</td><td>Verification methodology compliance?</td><td>Nothing out of goal has drivers/checkers/coverage (tie-offs only). Everything self-built. Group-level checkers, not per-module.</td></tr>
+<tr><td>4</td><td>All stimulus generatable?</td><td>Full ISA + hazards + delays + resets + illegal encodings — yes: program generator (code), slave delay profiles (timing), sys_ctrl sequences (reset).</td></tr>
+<tr><td>5</td><td>All important behavior checkable?</td><td>Retire compare + bus matcher + RF-port checks + SVA + watchdogs. Cross-product covers data, address, BE, control flow, timing legality, reset behavior.</td></tr>
+<tr><td>6</td><td>Meaningful coverage?</td><td>Committed-stream ISA/scenario cov + protocol cov + reset crosses; no out-of-goal bins exist anywhere.</td></tr>
+<tr><td>7</td><td>Negative scenarios?</td><td>Illegal encodings with observable redirect; timing extremes; reset-while-busy; hang detection. Bus-error injection correctly excluded (no such OBI signals).</td></tr>
+<tr><td>8</td><td>Reset handling?</td><td>Dedicated driver sequences, event broadcast, queue flush/resync rules, reset SVA + scenario crosses, re-run safety.</td></tr>
+<tr><td>9</td><td>Failure locatable at 3 AM?</td><td>Instruction-trace logs, exp-vs-act dumps incl. disasm, RF-port isolation, wave anchors, watchdog context. Yes.</td></tr>
+<tr><td>10</td><td>Challenge pass — missing? unnecessary? wrong-layer?</td><td><b>Missing:</b> none after C1–C10 (program path, EOT, reset, probes were the real holes). <b>Unnecessary:</b> passive-agent duplicates (removed), RAL (rejected), per-module scoreboards (rejected), OOB/out-of-order matching (in-order core). <b>Wrong layer:</b> "output monitor" concept (merged), coverage bucket (split by source). <b>Connection gaps:</b> none — every component has defined producers/consumers per §5.1/§5.3.</td></tr>
+</table>
+<h2>15. Notes and limits of this proposal</h2>
+<ul class="tight">
+<li>The exact probe tap names in §5.2 are confirmed against the current RTL; if any internal net is renamed on an RTL update, <code>cv32e40p_rvfi_if</code> is the only file to adjust (flagged as the single fragility, mitigated by the RTL's own precedent).</li>
+<li>The LSU bus matcher needs the exact split order/BE pattern, implemented from databook rules (lowest address first) and validated early against RTL with a directed misaligned smoke test.</li>
+<li>Component names here are final for TB implementation, and the Verification Plan (separate task, untouched here) will be aligned to them afterwards — including renaming the plan-side references to the merged agents/monitors.</li>
+</ul>
+</body>
+</html>
