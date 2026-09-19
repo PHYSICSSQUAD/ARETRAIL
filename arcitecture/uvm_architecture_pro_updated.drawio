@@ -4,7 +4,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="test" parent="1" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;startSize=30;fontStyle=1;" value=" " vertex="1">
+        <mxCell id="test" parent="1" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;startSize=30;fontStyle=1;" value="Test (top_tb)" vertex="1">
           <mxGeometry height="1060" width="1510" x="20" y="30" as="geometry" />
         </mxCell>
         <mxCell id="cfg" parent="test" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="env_cfg (Configuration)" vertex="1">
@@ -12,6 +12,12 @@
         </mxCell>
         <mxCell id="vseq" parent="test" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;" value="Virtual Sequences" vertex="1">
           <mxGeometry height="50" width="180" x="250" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="prog_gen" parent="test" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="riscv_program (Program Builder)" vertex="1">
+          <mxGeometry height="50" width="250" x="460" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="seq_lib" parent="test" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Sequence Library (riscv_*_sequence, obi_memory_sequence)" vertex="1">
+          <mxGeometry height="50" width="360" x="730" y="60" as="geometry" />
         </mxCell>
         <mxCell id="env" parent="test" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;startSize=30;fontStyle=1;" value=" " vertex="1">
           <mxGeometry height="890" width="1460" x="20" y="150" as="geometry" />
@@ -174,6 +180,16 @@
             <mxPoint x="-7.5" y="-7.5" as="offset" />
           </mxGeometry>
         </mxCell>
+        <mxCell id="cov_exp3" parent="cov" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" x="0.4" y="1" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cov_exp4" parent="cov" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" x="0.5" y="0" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
         <mxCell id="tnfaoiW0JXz17HmROI4M-1" edge="1" parent="env" source="vsqr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;shape=wire;" target="if_agt_sqr">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="-30" y="230" as="sourcePoint" />
@@ -275,10 +291,13 @@
         <mxCell id="intf_rst" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;dashed=1;strokeWidth=2;" value="System Control Interface" vertex="1">
           <mxGeometry height="40" width="200" x="940" y="1150" as="geometry" />
         </mxCell>
+        <mxCell id="oos_ports" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;strokeWidth=2;" value="Out-of-Scope Ports (tied off / no X-prop)" vertex="1">
+          <mxGeometry height="120" width="240" x="20" y="1230" as="geometry" />
+        </mxCell>
         <mxCell id="dut" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;strokeWidth=2;" value="Design Under Test (CV32E40P)" vertex="1">
           <mxGeometry height="120" width="500" x="270" y="1230" as="geometry" />
         </mxCell>
-        <mxCell id="sva" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;strokeWidth=2;" value="Assertions (SVA Module) bind cv32e40p_top" vertex="1">
+        <mxCell id="sva" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;strokeWidth=2;" value="Assertions (SVA) bind cv32e40p_top / agent output_monitors" vertex="1">
           <mxGeometry height="120" width="220" x="920" y="1230" as="geometry" />
         </mxCell>
         <mxCell id="e_sva_dut" edge="1" parent="1" source="sva" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;" target="dut">
@@ -367,6 +386,15 @@
               <mxCell id="rvfi_pas" parent="env" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;startSize=30;fontStyle=1;" value="RVFI Monitor (Passive)" vertex="1">
           <mxGeometry height="120" width="240" x="580" y="670" as="geometry" />
         </mxCell>
+        <mxCell id="imem_model" parent="env" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="instr_mem_model (OBI Slave)" vertex="1">
+          <mxGeometry height="80" width="240" x="20" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="dmem_model" parent="env" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="data_mem_model (OBI Slave)" vertex="1">
+          <mxGeometry height="80" width="240" x="300" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="wdog" parent="env" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;strokeWidth=2;" value="Watchdog Timer (global timeout)" vertex="1">
+          <mxGeometry height="80" width="240" x="580" y="800" as="geometry" />
+        </mxCell>
         <mxCell id="rvfi_pas_mon" parent="rvfi_pas" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" value="Internal State Monitor" vertex="1">
           <mxGeometry height="50" width="200" x="20" y="50" as="geometry" />
         </mxCell>
@@ -377,6 +405,11 @@
         </mxCell>
         <mxCell id="sb_imp_rvfi" parent="sb" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
           <mxGeometry height="15" relative="1" width="15" y="0.65" as="geometry">
+            <mxPoint x="-7.5" y="-7.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sb_imp_dmem" parent="sb" style="shape=ellipse;whiteSpace=wrap;html=1;fillColor=#FF3333;strokeColor=#CC0000;" value="" vertex="1">
+          <mxGeometry height="15" relative="1" width="15" x="0" y="0.05" as="geometry">
             <mxPoint x="-7.5" y="-7.5" as="offset" />
           </mxGeometry>
         </mxCell>
@@ -406,6 +439,67 @@
               <mxPoint x="820" y="1210" />
               <mxPoint x="600" y="1210" />
             </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_prog_imem" edge="1" parent="1" source="prog_gen" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="imem_model">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="605" y="1100" />
+              <mxPoint x="180" y="1100" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_seqlib_vsqr" edge="1" parent="1" source="seq_lib" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="vsqr">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="930" y="165" />
+              <mxPoint x="170" y="165" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_imem_ifdrv" edge="1" parent="1" source="imem_model" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="if_agt_drv">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="285" y="1000" />
+              <mxPoint x="285" y="725" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_dmem_lsudrv" edge="1" parent="1" source="dmem_model" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="lsu_agt_drv">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="560" y="1000" />
+              <mxPoint x="560" y="725" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_dmem_sb" edge="1" parent="1" source="dmem_model" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.05;entryDx=0;entryDy=0;" target="sb_imp_dmem">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="460" y="1080" />
+              <mxPoint x="1000" y="1080" />
+              <mxPoint x="1000" y="608" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_rvfi_cov" edge="1" parent="1" source="rvfi_pas_ap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;" target="cov_exp3">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_rst_cov" edge="1" parent="1" source="rst_agt_ap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;" target="cov_exp4">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="600" y="518" />
+              <mxPoint x="600" y="780" />
+              <mxPoint x="860" y="780" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_rvfi_wdog" edge="1" parent="1" source="rvfi_pas_ap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;strokeColor=#0066CC;shape=wire;entryX=0.906;entryY=0;entryDx=0;entryDy=0;" target="wdog">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_oos_dut" edge="1" parent="1" source="oos_ports" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="dut">
+          <mxGeometry relative="1" as="geometry">
           </mxGeometry>
         </mxCell>
       </root>
